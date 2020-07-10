@@ -112,7 +112,7 @@ if(APPLE)
     set(BINARY_NAME ${PROJECT_NAME}.app
 )
 else()
-    set(BINARY_NAME ${PROJECT_NAME})
+    set(BINARY_NAME $<TARGET_FILE:${PROJECT_NAME}>)
 endif()
 
 #-------------------------------------------------------------------------------------------------------

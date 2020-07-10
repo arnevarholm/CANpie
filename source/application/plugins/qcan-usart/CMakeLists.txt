@@ -91,8 +91,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Core Qt5::SerialPort Qt5::Wid
 #-------------------------------------------------------------------------------------------------------
 # copy library to plugins directory:
 #
-set(LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
-
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E echo "       Copy ${LIB_NAME} to ${CP_PATH_PLUGINS}/"
-                   COMMAND ${CMAKE_COMMAND} -E copy ${LIB_NAME} ${CP_PATH_PLUGINS}/)
+                   COMMAND ${CMAKE_COMMAND} -E echo "       Copy $<TARGET_FILE:${PROJECT_NAME}> to ${CP_PATH_PLUGINS}"
+                   COMMAND ${CMAKE_COMMAND} -E make_directory ${CP_PATH_PLUGINS}
+                   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${CP_PATH_PLUGINS})
