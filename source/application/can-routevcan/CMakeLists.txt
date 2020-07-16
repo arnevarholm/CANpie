@@ -1,17 +1,17 @@
 #----------------------------------------------------------------------------------------------------------------------#
-# CMake file for CANpieServer                                                                                          #
+# CMake file for can-send                                                                                              #
 #                                                                                                                      #
 #----------------------------------------------------------------------------------------------------------------------#
 
 cmake_minimum_required(VERSION 3.16.4 FATAL_ERROR)
 cmake_policy(SET CMP0048 NEW)
 
-message("-- Configure CANpieServer")
+message("-- Configure can-send")
 
 #-------------------------------------------------------------------------------------------------------
 # define the project name and version
 #
-project(CANpieServer VERSION 0.99.8)
+project(can-routevcan VERSION 0.99.8)
 
 
 #-------------------------------------------------------------------------------------------------------
@@ -41,74 +41,38 @@ add_definitions(-DVERSION_BUILD=${PROJECT_VERSION_PATCH})
 #
 list(
    APPEND APP_SOURCES
-   qcan_interface_widget.cpp
-   qcan_server_dialog.cpp
-   server_main.cpp
+   qcan_routevcan.cpp
 )
-
-
-#------------------------------------------------------------------------------------------------------- 
-# On macOSdefine source files for compilation
-#
-if (APPLE)
-   list(APPEND APP_SOURCES  MacAppNapSuspender.mm)
-endif()
 
 list(
    APPEND QCAN_SOURCES
    ${CP_PATH_QCAN}/qcan_frame.cpp
-   ${CP_PATH_QCAN}/qcan_network.cpp
-   ${CP_PATH_QCAN}/qcan_server.cpp
-   ${CP_PATH_QCAN}/qcan_server_logger.cpp
-   ${CP_PATH_QCAN}/qcan_server_logger_view.cpp
+   ${CP_PATH_QCAN}/qcan_network_settings.cpp
+   ${CP_PATH_QCAN}/qcan_server_settings.cpp
+   ${CP_PATH_QCAN}/qcan_socket.cpp
    ${CP_PATH_QCAN}/qcan_timestamp.cpp
 )
 
-list (APPEND RESOURCES server.qrc)
+
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOUIC_SEARCH_PATHS ./forms)
 
+find_package(Qt5 COMPONENTS Core Network WebSockets REQUIRED)
 
-find_package(Qt5 COMPONENTS Core Gui Network WebSockets Widgets REQUIRED)
-
-if (APPLE)
-   find_library(OSX_FRAMEWORK Foundation)
-   if (NOT OSX_FRAMEWORK)
-      message(FATAL_ERROR "Foundation framework not found")
-   endif()
-
-   set(ICON_FILE  ${CMAKE_CURRENT_SOURCE_DIR}/images/canpie_server.icns)
-   set_source_files_properties(${ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-endif()
 
 #-------------------------------------------------------------------------------------------------------
 # create binary from selected source files
 #
-add_executable(${PROJECT_NAME} MACOSX_BUNDLE
-   ${APP_SOURCES}
-   ${QCAN_SOURCES}
-   ${RESOURCES}
-   ${ICON_FILE}
-)
+add_executable(${PROJECT_NAME} 
+    ${APP_SOURCES}
+    ${QCAN_SOURCES}
 
+)
 
 #-------------------------------------------------------------------------------------------------------
 # link Qt libs 
 #
-target_link_libraries(${PROJECT_NAME} Qt5::Core Qt5::Gui Qt5::Network Qt5::WebSockets Qt5::Widgets)
-if(APPLE)
-   target_link_libraries(${PROJECT_NAME} "-framework Foundation")
-
-   set_target_properties(${PROJECT_NAME} PROPERTIES
-      OUTPUT_NAME "CANpieServer"
-      MACOSX_BUNDLE TRUE
-      MACOSX_RPATH TRUE
-      MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist
-   )
-endif()
+target_link_libraries(${PROJECT_NAME} Qt5::Core Qt5::Network Qt5::WebSockets)
 
 #-------------------------------------------------------------------------------------------------------
 # copy program to bin directory 

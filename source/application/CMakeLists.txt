@@ -16,6 +16,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/can-config)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/can-dump)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/can-error)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/can-send)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/can-routevcan)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/plugins)

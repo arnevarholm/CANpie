@@ -77,7 +77,20 @@ target_link_libraries(${PROJECT_NAME} Qt5::Core Qt5::Network Qt5::WebSockets)
 #-------------------------------------------------------------------------------------------------------
 # copy program to bin directory 
 #
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E echo "       Copy $<TARGET_FILE:${PROJECT_NAME}> to ${CP_PATH_BIN}"
-                   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${CP_PATH_BIN})
+set(TARGET_FILE $<TARGET_FILE:${PROJECT_NAME}>)
+message("TARGET_FILE = " ${TARGET_FILE})
 
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                   COMMENT "Copy ${TARGET_FILE} to ${CP_PATH_BIN}"
+                   COMMAND ${CMAKE_COMMAND} -E copy  ${TARGET_FILE} ${CP_PATH_BIN}
+                   )
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                   COMMENT "Windeployqt ${TARGET_FILE_DIR}/${TARGET_FILE} for Debug"
+                   COMMAND ${Qt5_WINDEPLOYQT} ${TARGET_FILE}
+                   )
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                   COMMENT "Windeployqt ${CP_PATH_BIN}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+                   COMMAND ${Qt5_WINDEPLOYQT}  ${CP_PATH_BIN}/$<TARGET_FILE_NAME:${PROJECT_NAME}>
+                   )

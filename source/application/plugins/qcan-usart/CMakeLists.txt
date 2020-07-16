@@ -91,7 +91,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE Qt5::Core Qt5::SerialPort Qt5::Wid
 #-------------------------------------------------------------------------------------------------------
 # copy library to plugins directory:
 #
+set(TARGET_FILE $<TARGET_FILE:${PROJECT_NAME}>)
+message("TARGET_FILE = " ${TARGET_FILE})
+
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E echo "       Copy $<TARGET_FILE:${PROJECT_NAME}> to ${CP_PATH_PLUGINS}"
-                   COMMAND ${CMAKE_COMMAND} -E make_directory ${CP_PATH_PLUGINS}
-                   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${CP_PATH_PLUGINS})
+                   COMMENT "Copy ${TARGET_FILE} to ${CP_PATH_BIN}/Plugin"
+                   COMMAND ${CMAKE_COMMAND} -E copy  ${TARGET_FILE} ${CP_PATH_BIN}/Plugin
+                   )
+#add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#                   COMMENT "Windeployqt ${CP_PATH_BIN}/Plugin/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+#                   COMMAND ${Qt5_WINDEPLOYQT} --dir ${CP_PATH_BIN} ${CP_PATH_BIN}/Plugin/$<TARGET_FILE_NAME:${PROJECT_NAME}>
+#                   )

@@ -17,7 +17,8 @@ cmake_policy(SET CMP0048 NEW)
 
 message(CMAKE_HOST_SYSTEM_NAME=${CMAKE_HOST_SYSTEM_NAME})
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Windows")
-set(Qt5_DIR "C:/Qt5/5.15.0/msvc2019/lib/cmake/Qt5")
+set(Qt5_DIR "C:/Qt/5.9.9/msvc2015/lib/cmake/Qt5")
+set(Qt5_WINDEPLOYQT "C:\\\\Qt\\\\5.9.9\\\\msvc2015\\\\bin\\\\windeployqt.exe")
 endif()
 
 
