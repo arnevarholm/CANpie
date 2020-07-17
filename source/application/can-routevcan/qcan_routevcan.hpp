@@ -27,13 +27,10 @@
 //                                                                                                                    //
 //====================================================================================================================//
 
-
-
 /*--------------------------------------------------------------------------------------------------------------------*\
 ** Include files                                                                                                      **
 **                                                                                                                    **
 \*--------------------------------------------------------------------------------------------------------------------*/
-
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QCommandLineParser>
@@ -42,50 +39,62 @@
 
 #include <QCanServerSettings>
 #include <QCanSocket>
-
+#include <QUdpSocket>
+#include <QNetworkDatagram>
+#include "VCanMC.h"
 
 class QCanRouteVcan : public QObject
 {
-   Q_OBJECT
+  Q_OBJECT
 
-public:
-   QCanRouteVcan(QObject *parent = 0);
+  public:
+   QCanRouteVcan(QObject* parent = 0);
 
-signals:
+   QNetworkDatagram qtMulticastDatagram;
+   CpCanLanMsg_s clMulticastLanMessage;
+  
+   struct
+   {
+      QHostAddress hostAddress;  // Hostadapter of adapter to send to
+      quint16 Port;
+      QHostAddress Group;  
+   } qtMulticast;           // Route to this Multicast group and port
+	
+  signals:
    void finished();
 
-public slots:
+  public slots:
    void aboutToQuitApp(void);
-
+   void receiveMulticastDatagrams();
    void runCmdParser(void);
 
-   void sendFrame(void);
    void socketConnected();
    void socketDisconnected();
    void socketError(QAbstractSocket::SocketError teSocketErrorV);
-   void quit();
-   
-private:
+  
+   void  receiveCANpieDatagrams(void);
+   void quitApplication();
 
-   QCoreApplication *   pclAppP;
+  private:
+   void sendCANpieServerDatagram(QCanFrame& frame);
+   QCoreApplication* pclAppP;
 
-   QCommandLineParser   clCmdParserP;
-   QCanServerSettings   clServerP;
+   QCommandLineParser clCmdParserP;
+   QCanServerSettings clServerP;
 
-   QCanSocket           clCanSocketP;
-   uint8_t              ubChannelP;
-   
-   QCanFrame            clCanFrameP;
-   uint32_t             ulFrameIdP;
-   uint32_t             ulFrameGapP;
-   uint8_t              ubFrameDlcP;
-   uint8_t              ubFrameFormatP;
-   uint8_t              aubFrameDataP[QCAN_MSG_DATA_MAX];
-   bool                 btIncIdP;
-   bool                 btIncDlcP;
-   bool                 btIncDataP;
-   uint32_t             ulFrameCountP;
+   QCanSocket clCanSocketP;
+   uint8_t ubChannelP;
+
+   QCanFrame clTransmitFrameP;
+   QCanFrame clReceiveFrameP;
+   QMutex clReceiveMutexP;
+   QQueue<QCanFrame> clReceiveFifoP;
+   uint32_t ulFrameIdP;
+   // uint32_t             ulFrameGapP;
+   uint8_t ubFrameDlcP;
+   uint8_t ubFrameFormatP;
+   uint8_t aubFrameDataP[QCAN_MSG_DATA_MAX];
+   uint32_t ulFrameCountP;
+   QUdpSocket clVcanTxSockettP;
+   QUdpSocket clVcanRxSockettP;
 };
-
-
-

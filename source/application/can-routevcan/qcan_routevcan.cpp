@@ -27,13 +27,10 @@
 //                                                                                                                    //
 //====================================================================================================================//
 
-
-
 /*--------------------------------------------------------------------------------------------------------------------*\
 ** Include files                                                                                                      **
 **                                                                                                                    **
 \*--------------------------------------------------------------------------------------------------------------------*/
-
 
 #include "qcan_routevcan.hpp"
 
@@ -42,17 +39,19 @@
 #include <QtCore/QDebug>
 #include <QtCore/QTime>
 #include <QtCore/QTimer>
-
+#include <QNetworkDatagram>
+#include <QHostAddress>
+#include <QNetworkInterface>
 
 //--------------------------------------------------------------------------------------------------------------------//
 // main()                                                                                                             //
 //                                                                                                                    //
 //--------------------------------------------------------------------------------------------------------------------//
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
    QCoreApplication clAppT(argc, argv);
    QCoreApplication::setApplicationName("can-routevcan");
-   
+
    //---------------------------------------------------------------------------------------------------
    // get application version (defined in .pro file)
    //
@@ -64,23 +63,17 @@ int main(int argc, char *argv[])
    clVersionT += __DATE__;
    QCoreApplication::setApplicationVersion(clVersionT);
 
-
    //---------------------------------------------------------------------------------------------------
    // create the main class
    //
    QCanRouteVcan clMainT;
 
-   
    //---------------------------------------------------------------------------------------------------
    // connect the signals
    //
-   QObject::connect(&clMainT, SIGNAL(finished()),
-                    &clAppT, SLOT(quit()));
-   
-   QObject::connect(&clAppT, SIGNAL(aboutToQuit()),
-                    &clMainT, SLOT(aboutToQuitApp()));
+   QObject::connect(&clMainT, SIGNAL(finished()), &clAppT, SLOT(quit()));
+   QObject::connect(&clAppT, SIGNAL(aboutToQuit()), &clMainT, SLOT(aboutToQuitApp()));
 
-   
    //---------------------------------------------------------------------------------------------------
    // This code will start the messaging engine in QT and in 10 ms it will start the execution in the
    // clMainT.runCmdParser() routine.
@@ -90,69 +83,53 @@ int main(int argc, char *argv[])
    clAppT.exec();
 }
 
-
 //--------------------------------------------------------------------------------------------------------------------//
 // QCanRouteVcan()                                                                                                         //
 // constructor                                                                                                        //
 //--------------------------------------------------------------------------------------------------------------------//
-QCanRouteVcan::QCanRouteVcan(QObject *parent) :
-    QObject(parent)
+QCanRouteVcan::QCanRouteVcan(QObject* parent) : QObject(parent)
 {
    //---------------------------------------------------------------------------------------------------
    // get the instance of the main application
    //
    pclAppP = QCoreApplication::instance();
 
-   
    //---------------------------------------------------------------------------------------------------
    // connect signals for socket operations
    //
-   QObject::connect(&clCanSocketP, SIGNAL(connected()),
-                    this, SLOT(socketConnected()));
+   QObject::connect(&clCanSocketP, SIGNAL(connected()), this, SLOT(socketConnected()));
 
-   QObject::connect(&clCanSocketP, SIGNAL(disconnected()),
-                    this, SLOT(socketDisconnected()));
-   
-   QObject::connect(&clCanSocketP, SIGNAL(error(QAbstractSocket::SocketError)),
-                    this, SLOT(socketError(QAbstractSocket::SocketError)));
-   
+   QObject::connect(&clCanSocketP, SIGNAL(disconnected()), this, SLOT(socketDisconnected()));
+
+   QObject::connect(&clCanSocketP, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
+
+
+
+   QObject::connect(&clCanSocketP, &QCanSocket::readyRead, this, &QCanRouteVcan::receiveCANpieDatagrams);
+
    //---------------------------------------------------------------------------------------------------
    // set default values
    //
-   ubChannelP     = eCAN_CHANNEL_NONE;
-   ulFrameIdP     = 0;
-   ulFrameGapP    = 0;
-   ubFrameDlcP    = 0;
-   ubFrameFormatP = 0;
-   btIncIdP       = false;
-   btIncDlcP      = false;
-   btIncDataP     = false;
-   ulFrameCountP  = 0;
-
+   ulFrameCountP = 0;
 }
-
 
 //--------------------------------------------------------------------------------------------------------------------//
 // QCanRouteVcan::aboutToQuitApp()                                                                                         //
-// shortly after quit is called the CoreApplication will signal this routine: delete objects / clean up               //
+// shortly after quitApplication is called the CoreApplication will signal this routine: delete objects / clean up               //
 //--------------------------------------------------------------------------------------------------------------------//
 void QCanRouteVcan::aboutToQuitApp()
 {
-
 }
 
-
 //--------------------------------------------------------------------------------------------------------------------//
-// QCanRouteVcan::quit()                                                                                                   //
-// call this routine to quit the application                                                                          //
+// QCanRouteVcan::quitApplication()                                                                                                   //
+// call this routine to quitApplication the application                                                                          //
 //--------------------------------------------------------------------------------------------------------------------//
-void QCanRouteVcan::quit()
+void QCanRouteVcan::quitApplication()
 {
    clCanSocketP.disconnectNetwork();
-
    emit finished();
 }
-
 
 //--------------------------------------------------------------------------------------------------------------------//
 // QCanDump::runCmdParser()                                                                                           //
@@ -166,79 +143,73 @@ void QCanRouteVcan::runCmdParser(void)
    //
    clCmdParserP.setApplicationDescription(tr("Route between CAN interface and VCAN"));
    clCmdParserP.addHelpOption();
-   
+
    //---------------------------------------------------------------------------------------------------
    // argument <interface> is required
    //
-   clCmdParserP.addPositionalArgument("interface", 
-                                      tr("CAN interface, e.g. can1"));   
+   clCmdParserP.addPositionalArgument("interface", tr("CAN interface, e.g. can1"));
    //---------------------------------------------------------------------------------------------------
    // command line option: -H <host>
    //
-   QCommandLineOption clOptHostT("H", 
-         tr("Connect to <host>"),
-         tr("host"));
+   QCommandLineOption clOptHostT("H", tr("Connect to <host>"), tr("host"));
    clCmdParserP.addOption(clOptHostT);
-
 
    //---------------------------------------------------------------------------------------------------
    // command line option: -s | --seg <segment>
    //
-   QCommandLineOption clOptSegmentT(QStringList() << "s" << "seg",
-	   tr("Route segment <seg>"),
-	   tr("segment"));
+   QCommandLineOption clOptSegmentT(QStringList() << "s"
+                                                  << "seg",
+                                    tr("Route segment <seg>"), tr("segment"));
    clCmdParserP.addOption(clOptSegmentT);
+
+   QCommandLineOption clOptVcanPortT(QStringList() << "p"
+                                                   << "port",
+                                     tr("UDP <port>"), tr("port"));
+   clCmdParserP.addOption(clOptVcanPortT);
 
    //---------------------------------------------------------------------------------------------------
    // command line option: -v, --version
    //
    clCmdParserP.addVersionOption();
 
-
    //---------------------------------------------------------------------------------------------------
    // Process the actual command line arguments given by the user
    //
    clCmdParserP.process(*pclAppP);
    const QStringList clArgsT = clCmdParserP.positionalArguments();
-   if (clArgsT.size() != 1) 
+   if (clArgsT.size() != 1)
    {
-      fprintf(stderr, "%s\n", 
-              qPrintable(tr("Error: Must specify CAN interface.\n")));
+      fprintf(stderr, "%s\n", qPrintable(tr("Error: Must specify CAN interface.\n")));
       clCmdParserP.showHelp(0);
    }
 
-   
    //---------------------------------------------------------------------------------------------------
    // test format of argument <interface>
    //
    QString clInterfaceT = clArgsT.at(0);
-   if(!clInterfaceT.startsWith("can"))
+   if (!clInterfaceT.startsWith("can"))
    {
-      fprintf(stderr, "%s %s\n", 
-              qPrintable(tr("Error: Unknown CAN interface ")),
-              qPrintable(clInterfaceT));
+      fprintf(stderr, "%s %s\n", qPrintable(tr("Error: Unknown CAN interface ")), qPrintable(clInterfaceT));
       clCmdParserP.showHelp(0);
    }
-   
+
    //---------------------------------------------------------------------------------------------------
    // convert CAN channel to uint8_t value
    //
    QString clIfNumT = clInterfaceT.right(clInterfaceT.size() - 3);
    bool btConversionSuccessT;
-   int32_t slChannelT = clIfNumT.toInt(&btConversionSuccessT, 10);
-   if((btConversionSuccessT == false) ||
-      (slChannelT == 0) )
+   uint8_t ubChannelT = clIfNumT.toInt(&btConversionSuccessT, 10);
+   if ((btConversionSuccessT == false) || (ubChannelT == 0))
    {
-      fprintf(stderr, "%s \n\n", 
-              qPrintable(tr("Error: CAN interface out of range")));
+      fprintf(stderr, "%s \n\n", qPrintable(tr("Error: CAN interface out of range")));
       clCmdParserP.showHelp(0);
    }
-   
+
    //---------------------------------------------------------------------------------------------------
    // store CAN interface channel (CAN_Channel_e)
    //
-   ubChannelP = (uint8_t) (slChannelT);
-	
+   ubChannelP = ubChannelT;
+
    //---------------------------------------------------------------------------------------------------
    // set host address for socket
    //
@@ -247,161 +218,131 @@ void QCanRouteVcan::runCmdParser(void)
       QHostAddress clAddressT = QHostAddress(clCmdParserP.value(clOptHostT));
       clCanSocketP.setHostAddress(clAddressT);
    }
-   else
-   {
-      /*
-      //-------------------------------------------------------------------------------------------
-      // check to local server state and print error if it is not active
-      //
-      if (pclServerP->state() < QCanServerSettings::eSTATE_ACTIVE)
-      {
-         fprintf(stdout, "CANpie FD server %s \n", qPrintable(pclServerP->stateString()));
-         exit(0);
-      }
-      */
-   }
-
-   if (clCmdParserP.isSet(clOptSegmentT))
-   {
-	   QString s = clCmdParserP.value(clOptSegmentT);
-	   uint32_t seg = s.toUInt();
-
-   	
-   	
-	   
-   }
-   else
-   {
-	   fprintf(stderr, "%s \n\n",
-		   qPrintable(tr("Error: Need VCAN segment to route")));
-	   exit(-1);
-
-	   
-   }
-   
-
-	
 
    //---------------------------------------------------------------------------------------------------
-   // connect to CAN interface
+   // store VCANMC_NET network
    //
-   clCanSocketP.connectNetwork((CAN_Channel_e) ubChannelP);
 
+   //---------------------------------------------------------------------------------------------------
+   // stor base VCANMC_DEST Multicast group or Unicast address
+   //
+
+   //---------------------------------------------------------------------------------------------------
+   // VCANMC_PORT
+   if (clCmdParserP.isSet(clOptVcanPortT))
+   {
+      //---------------------------------------------------------------------------------------------------
+      // Must have VCAN segment to route
+      //
+      if (clCmdParserP.isSet(clOptSegmentT))
+      {
+         QString seg = clCmdParserP.value(clOptSegmentT);
+         /*
+          * VCAN TX socket
+          */
+         const auto ifaces = QNetworkInterface::allInterfaces();
+         bool found = false;
+         int ifIndex = 0;
+         if (!ifaces.isEmpty())
+         {
+            for (auto i = 0; i < ifaces.size() && !found; i++)
+            {
+               if (ifaces[i].IsUp && ifaces[i].CanMulticast)
+               {
+                  const auto aes = ifaces[i].addressEntries();
+                  for (auto j = 0; j < aes.size(); ++j)
+                  {
+                     qtMulticast.hostAddress = aes[j].ip();
+                     QHostAddress mask = aes[j].netmask();
+                     QHostAddress net(qtMulticast.hostAddress.toIPv4Address() & mask.toIPv4Address());
+                     if (net == QHostAddress("192.32.23.0"))
+                     {
+#if 1
+                        // if (clVcanTxSockettP.bind(hostAddress, 0))
+                        if (clVcanTxSockettP.bind(QHostAddress(QHostAddress::AnyIPv4), 0))
+                        {
+                           qDebug() << "QCanRouteVcan::Bind TX to " << qtMulticast.hostAddress;
+                        }
+                        else
+                        {
+                           qDebug() << "Bind Failed" << clVcanTxSockettP.errorString();
+                        }
+#endif
+
+                        // Save interface index
+                        ifIndex = ifaces[i].index();
+                        clVcanTxSockettP.setMulticastInterface(ifaces[i]);
+                        found = true;
+                        break;
+                     }
+                  }
+               }
+            }
+         }
+
+         /*
+          * VCAN RX socket
+          */
+         clVcanRxSockettP.bind(qtMulticast.hostAddress, VCANMC_PORT, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+         QString group = QString("239.0.0.%1").arg(seg);
+         qtMulticast.Group.setAddress(group);
+         qDebug() << "QCanSocket::joining Multicast group" << qtMulticast.Group;
+         clVcanRxSockettP.joinMulticastGroup(qtMulticast.Group);
+
+         // Initialise TX datagram
+         qtMulticastDatagram.setDestination(qtMulticast.Group, VCANMC_PORT);
+         qtMulticastDatagram.setInterfaceIndex(ifIndex);
+         clMulticastLanMessage = {0};
+         clMulticastLanMessage.cpCanHdr.segment = seg.toUInt();
+         //---------------------------------------------------------------------------------------------------
+         // connect to CAN interface
+         //
+         clCanSocketP.connectNetwork((CAN_Channel_e)ubChannelP);
+      }
+      else
+      {
+         fprintf(stderr, "%s \n\n", qPrintable(tr("Error: Need VCAN segment to route")));
+         exit(-1);
+      }
+   }
 }
 
-
 //--------------------------------------------------------------------------------------------------------------------//
-// QCanDump::sendFrame()                                                                                              //
-//                                                                                                                    //
+// QCanDump::socketReceive()                                                                                          //
+// Show messages that are available                                                                                   //
 //--------------------------------------------------------------------------------------------------------------------//
-void QCanRouteVcan::sendFrame(void)
-{
-   QTime          clSystemTimeT;
-   QCanTimeStamp  clCanTimeT;
-   
-   clSystemTimeT = QTime::currentTime();
-   clCanTimeT.fromMilliSeconds(clSystemTimeT.msec());
-   clCanFrameP.setTimeStamp(clCanTimeT);
-   
-   clCanSocketP.write(clCanFrameP);
-   
-   if (ulFrameCountP > 1)
-   {
-      ulFrameCountP--;
-      
-      //-------------------------------------------------------------------------------------------
-      // test if identifier value must be incremented
-      //
-      if (btIncIdP)
-      {
-         ulFrameIdP++;
-         
-         //-----------------------------------------------------------------------------------
-         // test for wrap-around
-         //
-         if (clCanFrameP.isExtended())
-         {
-            if (ulFrameIdP > QCAN_FRAME_ID_MASK_EXT)
-            {
-               ulFrameIdP = 0;
-            }
-         }
-         else
-         {
-            if (ulFrameIdP > QCAN_FRAME_ID_MASK_STD)
-            {
-               ulFrameIdP = 0;
-            }
-         }
-         
-         //-----------------------------------------------------------------------------------
-         // set new identifier value
-         //
-         clCanFrameP.setIdentifier(ulFrameIdP);
-      }
-      
-      //-------------------------------------------------------------------------------------------
-      // test if DLC value must be incremented
-      //
-      if (btIncDlcP)
-      {
-         ubFrameDlcP++;
-         
-         //-----------------------------------------------------------------------------------
-         // test for wrap-around
-         //
-         if (clCanFrameP.frameFormat() > QCanFrame::eFORMAT_CAN_EXT)
-         {
-            if (ubFrameDlcP > 15)
-            {
-               ubFrameDlcP = 0;
-            }
-         }
-         else
-         {
-            if (ubFrameDlcP > 8)
-            {
-               ubFrameDlcP = 0;
-            }
-         }
-
-         //-----------------------------------------------------------------------------------
-         // set new DLC value
-         //
-         clCanFrameP.setDlc(ubFrameDlcP);
-      }  
-      
-      //-------------------------------------------------------------------------------------------
-      // test if data value must be incremented
-      //
-      if (btIncDataP)
-      {
-
-         if (clCanFrameP.dataSize() == 1)
-         {
-            clCanFrameP.setData(0, clCanFrameP.data(0) + 1);
-         }
-
-         if (clCanFrameP.dataSize() == 2)
-         {
-            clCanFrameP.setDataUInt16(0, clCanFrameP.dataUInt16(0) + 1);
-         }
-
-         if (clCanFrameP.dataSize() >= 4)
-         {
-            clCanFrameP.setDataUInt32(0, clCanFrameP.dataUInt32(0) + 1);
-         }
-      }
-      
-      QTimer::singleShot(ulFrameGapP, this, SLOT(sendFrame()));
+void QCanRouteVcan::receiveCANpieDatagrams(void)
+{	
+	qDebug() << "QCanRouteVcan::receiveCANpieDatagrams()";
+   int32_t slFrameCountT = clCanSocketP.framesAvailable();   
+	clMulticastLanMessage.cpCanHdr.msgCount = slFrameCountT;
+	for (int i=0; i < slFrameCountT; i++)
+	{
+      QCanFrame clCanFrameT;
+		if (clCanSocketP.read(clCanFrameT) == true)
+		{
+			clCanFrameT.toCpCanMsg(&clMulticastLanMessage.cpCanMsg[i]);			
+		}		
+	}	
+	const int length = VCAN_MSGLEN(clMulticastLanMessage.cpCanHdr.msgCount);
+   if (clVcanTxSockettP.writeDatagram(QByteArray::fromRawData((char*)&clMulticastLanMessage, length), qtMulticast.Group, VCANMC_PORT) != length)
+   {      
+      qDebug() << "QCanRouteVcan::Send failed " << clVcanTxSockettP.errorString();     
    }
    else
    {
-      QTimer::singleShot(50, this, SLOT(quit()));
+      qDebug() << "QCanRouteVcan::Send to " << qtMulticast.Group;
    }
-
 }
 
+//--------------------------------------------------------------------------------------------------------------------//
+// QCanDump::sendCANpieServerDatagram()                                                                                              //
+//                                                                                                                    //
+//--------------------------------------------------------------------------------------------------------------------//
+void QCanRouteVcan::sendCANpieServerDatagram(QCanFrame& clCanFrameP)
+{
+   clCanSocketP.write(clCanFrameP);
+}
 
 //--------------------------------------------------------------------------------------------------------------------//
 // QCanRouteVcan::socketConnected()                                                                                        //
@@ -412,17 +353,32 @@ void QCanRouteVcan::socketConnected()
    //---------------------------------------------------------------------------------------------------
    // initial setup of CAN frame
    //
-   clCanFrameP.setFrameFormat((QCanFrame::FrameFormat_e) ubFrameFormatP);
-   clCanFrameP.setIdentifier(ulFrameIdP);
-   clCanFrameP.setDlc(ubFrameDlcP);
-   for(uint8_t ubCntT = 0; ubCntT < clCanFrameP.dataSize(); ubCntT++)
-   {
-      clCanFrameP.setData(ubCntT, aubFrameDataP[ubCntT]);
-   }
-    
-   QTimer::singleShot(10, this, SLOT(sendFrame()));
+
+   connect(&clVcanRxSockettP, SIGNAL(readyRead()), this, SLOT(receiveMulticastDatagrams()));
+
+   connect(&clVcanRxSockettP, &QUdpSocket::readyRead, this, &QCanRouteVcan::receiveMulticastDatagrams);
 }
 
+void QCanRouteVcan::receiveMulticastDatagrams()
+{
+   QByteArray datagram;
+   while (clVcanRxSockettP.hasPendingDatagrams())
+   {
+	   int pendingDatagramSize = int(clVcanRxSockettP.pendingDatagramSize());
+      datagram.resize(pendingDatagramSize);
+      clVcanRxSockettP.readDatagram(datagram.data(), datagram.size());
+      CpCanLanMsg_s* canLanMsg = (CpCanLanMsg_s*)datagram.data();
+	  if (VCAN_MSGLEN(canLanMsg->cpCanHdr.msgCount) == pendingDatagramSize)
+	  {
+		  for (int i = 0; i < canLanMsg->cpCanHdr.msgCount; i++)
+		  {
+			  clReceiveFrameP.fromCpCanMsg(&canLanMsg->cpCanMsg[i]);
+			  ulFrameCountP++;
+			  sendCANpieServerDatagram(clReceiveFrameP);
+		  }
+	  }
+   }
+}
 
 //--------------------------------------------------------------------------------------------------------------------//
 // QCanRouteVcan::socketDisconnected()                                                                                     //
@@ -432,23 +388,18 @@ void QCanRouteVcan::socketConnected()
 void QCanRouteVcan::socketDisconnected()
 {
    qDebug() << "Disconnected from CAN " << ubChannelP;
-   
 }
-
 
 //--------------------------------------------------------------------------------------------------------------------//
 // QCanRouteVcan::socketError()                                                                                            //
-// Show error message and quit                                                                                        //
+// Show error message and quitApplication                                                                                        //
 //--------------------------------------------------------------------------------------------------------------------//
 void QCanRouteVcan::socketError(QAbstractSocket::SocketError teSocketErrorV)
 {
-   Q_UNUSED(teSocketErrorV);  // parameter not used 
-   
+   Q_UNUSED(teSocketErrorV);  // parameter not used
    //----------------------------------------------------------------
    // show error message in case the connection to the network fails
    //
-   fprintf(stderr, "%s %s\n", 
-           qPrintable(tr("Failed to connect to CAN interface:")),
-           qPrintable(clCanSocketP.errorString()));
-   quit();
+   fprintf(stderr, "%s %s\n", qPrintable(tr("Failed to connect to CAN interface:")), qPrintable(clCanSocketP.errorString()));
+   quitApplication();
 }

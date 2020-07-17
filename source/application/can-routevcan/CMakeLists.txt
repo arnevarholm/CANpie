@@ -28,6 +28,8 @@ INCLUDE(AddSourceDirectories )
 #
 include_directories(${CP_PATH_MISC})
 include_directories(${CP_PATH_QCAN})
+include_directories(${CP_PATH_CANPIE})
+include_directories(${CP_PATH_DEVICE_QCAN})
 
 #-------------------------------------------------------------------------------------------------------
 # pass version information to application
