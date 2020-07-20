@@ -157,14 +157,10 @@ void QCanRouteVcan::runCmdParser(void)
    //---------------------------------------------------------------------------------------------------
    // command line option: -s | --seg <segment>
    //
-   QCommandLineOption clOptSegmentT(QStringList() << "s"
-                                                  << "seg",
-                                    tr("Route segment <seg>"), tr("segment"));
+   QCommandLineOption clOptSegmentT(QStringList() << "s" << "seg", tr("Route segment <seg>"),  tr("segment"));
    clCmdParserP.addOption(clOptSegmentT);
 
-   QCommandLineOption clOptVcanPortT(QStringList() << "p"
-                                                   << "port",
-                                     tr("UDP <port>"), tr("port"));
+   QCommandLineOption clOptVcanPortT(QStringList() << "p" << "port",tr("UDP <port>"), tr("port"));
    clCmdParserP.addOption(clOptVcanPortT);
 
    //---------------------------------------------------------------------------------------------------
@@ -231,6 +227,7 @@ void QCanRouteVcan::runCmdParser(void)
    // VCANMC_PORT
    if (clCmdParserP.isSet(clOptVcanPortT))
    {
+   }
       //---------------------------------------------------------------------------------------------------
       // Must have VCAN segment to route
       //
@@ -304,7 +301,6 @@ void QCanRouteVcan::runCmdParser(void)
          fprintf(stderr, "%s \n\n", qPrintable(tr("Error: Need VCAN segment to route")));
          exit(-1);
       }
-   }
 }
 
 //--------------------------------------------------------------------------------------------------------------------//
