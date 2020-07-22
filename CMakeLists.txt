@@ -21,6 +21,7 @@ set(Qt5_DIR "C:/Qt/5.9.9/msvc2015/lib/cmake/Qt5")
 set(Qt5_WINDEPLOYQT "C:\\\\Qt\\\\5.9.9\\\\msvc2015\\\\bin\\\\windeployqt.exe")
 endif()
 
+add_compile_definitions(QT_NO_DEBUG_OUTPUT)
 
 #-------------------------------------------------------------------------------------------------------
 # specify project
